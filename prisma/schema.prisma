@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum TimeOffRequestStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum SyncJobType {
+  realtime
+  batch
+}
+
+enum SyncJobStatus {
+  running
+  succeeded
+  failed
+}
+
+model Employee {
+  id            String @id @default(uuid())
+  hcmEmployeeId String @unique
+  name          String
+  email         String @unique
+
+  balanceSnapshots BalanceSnapshot[]
+  timeOffRequests  TimeOffRequest[]
+  auditEvents      AuditEvent[]      @relation("AuditActor")
+}
+
+model Location {
+  id            String @id @default(uuid())
+  hcmLocationId String @unique
+  name          String
+  region        String
+
+  balanceSnapshots BalanceSnapshot[]
+  timeOffRequests  TimeOffRequest[]
+}
+
+model BalanceSnapshot {
+  id            String   @id @default(uuid())
+  employeeId    String
+  locationId    String
+  availableDays Float
+  pendingDays   Float
+  hcmSyncedAt   DateTime
+  version       Int      @default(0)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  location Location @relation(fields: [locationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([employeeId, locationId])
+  @@index([employeeId, locationId])
+  @@index([hcmSyncedAt])
+}
+
+model TimeOffRequest {
+  id             String               @id @default(uuid())
+  employeeId     String
+  locationId     String
+  startDate      DateTime
+  endDate        DateTime
+  daysRequested  Float
+  status         TimeOffRequestStatus
+  hcmSubmitted   Boolean              @default(false)
+  idempotencyKey String               @unique
+  createdAt      DateTime             @default(now())
+
+  employee    Employee     @relation(fields: [employeeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  location    Location     @relation(fields: [locationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  auditEvents AuditEvent[]
+
+  @@index([employeeId, createdAt])
+  @@index([employeeId, status])
+  @@index([locationId, startDate])
+}
+
+model AuditEvent {
+  id         String                @id @default(uuid())
+  requestId  String
+  actorId    String
+  action     String
+  prevStatus TimeOffRequestStatus?
+  newStatus  TimeOffRequestStatus?
+  timestamp  DateTime              @default(now())
+  metadata   Json?
+
+  request TimeOffRequest @relation(fields: [requestId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  actor   Employee       @relation("AuditActor", fields: [actorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([requestId, timestamp])
+  @@index([actorId, timestamp])
+}
+
+model SyncJob {
+  id            String        @id @default(uuid())
+  type          SyncJobType
+  status        SyncJobStatus
+  startedAt     DateTime
+  completedAt   DateTime?
+  recordsSynced Int           @default(0)
+  errors        Json?
+
+  @@index([type, startedAt])
+}
