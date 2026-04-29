@@ -7,8 +7,8 @@ import {
   afterEach,
   expect,
 } from '@jest/globals';
-import { BalancesController } from './balances.controller';
-import { BalancesService } from './balances.service';
+import { BalancesController } from '../balances.controller';
+import { BalancesService } from '../balances.service';
 
 describe('BalancesController', () => {
   let controller: BalancesController;

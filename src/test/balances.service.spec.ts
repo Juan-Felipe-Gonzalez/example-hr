@@ -1,7 +1,7 @@
 import { jest, describe, it, beforeEach, expect } from '@jest/globals';
-import { BalancesService } from './balances.service';
-import { PrismaService } from './prisma/prisma.service';
-import { HcmAdapter } from './hcm.adapter';
+import { BalancesService } from '../balances.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { HcmAdapter } from '../hcm.adapter';
 
 describe('BalancesService', () => {
   let service: BalancesService;

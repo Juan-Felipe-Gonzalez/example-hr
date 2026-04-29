@@ -16,6 +16,13 @@ import {
 } from './hcm.adapter';
 import { TimeOffRequest } from '@prisma/client';
 
+export class IllegalTransitionException extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'IllegalTransitionException';
+  }
+}
+
 export type CreateTimeOffRequestDto = {
   locationId: string;
   startDate: string; // ISO date string
@@ -53,10 +60,39 @@ type ApprovalActor = {
 
 @Injectable()
 export class RequestsService {
+  private static readonly PENDING_STATUS = 'SUBMITTED';
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly hcmAdapter: HcmAdapter,
   ) {}
+
+  approve(request: TimeOffRequest): { status: 'APPROVED' } {
+    if (request.status !== RequestsService.PENDING_STATUS) {
+      throw new IllegalTransitionException(
+        `Cannot approve request with status ${request.status}.`,
+      );
+    }
+
+    return { status: 'APPROVED' };
+  }
+
+  cancel(
+    request: TimeOffRequest,
+    now: Date = new Date(),
+  ): { status: 'CANCELLED' } {
+    if (request.status === RequestsService.PENDING_STATUS) {
+      return { status: 'CANCELLED' };
+    }
+
+    if (request.status === 'APPROVED' && request.startDate > now) {
+      return { status: 'CANCELLED' };
+    }
+
+    throw new IllegalTransitionException(
+      `Cannot cancel request with status ${request.status}.`,
+    );
+  }
 
   async createTimeOffRequest(
     employeeId: string,

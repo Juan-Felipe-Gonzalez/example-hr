@@ -4,11 +4,13 @@ import { BalancesController } from './balances.controller';
 import { BalancesService } from './balances.service';
 import { RequestsController } from './requests.controller';
 import { RequestsService } from './requests.service';
-import { AuthGuard } from './auth.guard';
+import { AuthGuard } from './guards/auth.guard';
 import { HcmAdapter } from './hcm.adapter';
-import { AdminGuard } from './admin.guard';
-import { EmployeeGuard } from './employee.guard';
-import { ManagerOrAdminGuard } from './manager-or-admin.guard';
+import { AdminGuard } from './guards/admin.guard';
+import { EmployeeGuard } from './guards/employee.guard';
+import { ManagerOrAdminGuard } from './guards/manager-or-admin.guard';
+import { IdempotencyService } from './idempotency.service';
+import { ReconcilerService } from './reconciler.service';
 
 @Module({
   imports: [PrismaModule],
@@ -21,6 +23,8 @@ import { ManagerOrAdminGuard } from './manager-or-admin.guard';
     EmployeeGuard,
     ManagerOrAdminGuard,
     HcmAdapter,
+    IdempotencyService,
+    ReconcilerService,
   ],
 })
 export class AppModule {}

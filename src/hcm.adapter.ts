@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import axios, { AxiosInstance } from 'axios';
 
-export class HcmInsufficientBalanceError extends Error {
+export class InsufficientBalanceError extends Error {
   constructor(message = 'Insufficient balance at approval time.') {
     super(message);
-    this.name = 'HcmInsufficientBalanceError';
+    this.name = 'InsufficientBalanceError';
   }
 }
+
+export { InsufficientBalanceError as HcmInsufficientBalanceError };
 
 export class HcmUnavailableError extends Error {
   constructor(message = 'HCM system is currently unavailable.') {
@@ -15,9 +17,25 @@ export class HcmUnavailableError extends Error {
   }
 }
 
+export class InvalidDimensionError extends Error {
+  constructor(message = 'Invalid HCM dimension.') {
+    super(message);
+    this.name = 'InvalidDimensionError';
+  }
+}
+
+export class HcmRetryExhaustedError extends Error {
+  constructor(message = 'HCM retry attempts exhausted.') {
+    super(message);
+    this.name = 'HcmRetryExhaustedError';
+  }
+}
+
 @Injectable()
 export class HcmAdapter {
-  private axiosInstance: AxiosInstance;
+  private axiosInstance?: AxiosInstance;
+  private readonly maxRetries = 3;
+  private readonly retryBackoffMs = 25;
 
   constructor() {
     const baseURL = process.env.HCM_BASE_URL;
@@ -29,31 +47,39 @@ export class HcmAdapter {
     }
   }
 
-  // Simulates the real-time HCM balance lookup used by read endpoints.
-  async fetchBalance(
+  async getBalance(
     employee: { hcmEmployeeId: string },
     location: { hcmLocationId: string },
   ) {
-    if (this.axiosInstance) {
-      const response = await this.axiosInstance.get(`/balances/${employee.hcmEmployeeId}/${location.hcmLocationId}`);
+    if (!this.axiosInstance) {
+      return this.getFallbackBalance(employee, location);
+    }
+
+    try {
+      const response = await this.axiosInstance.get(
+        `/balances/${employee.hcmEmployeeId}/${location.hcmLocationId}`,
+      );
+
       return {
         availableDays: response.data.availableDays,
         pendingDays: response.data.pendingDays,
         hcmSyncedAt: new Date(response.data.hcmSyncedAt),
       };
+    } catch (error) {
+      if (this.getHttpStatus(error) === 503) {
+        throw new HcmUnavailableError();
+      }
+
+      throw error;
     }
+  }
 
-    // Fallback to fake logic
-    const employeeScore = employee.hcmEmployeeId.length;
-    const locationScore = location.hcmLocationId.length;
-    const pendingDays = Number((locationScore % 5).toFixed(2));
-    const availableDays = Number((20 + employeeScore - pendingDays).toFixed(2));
-
-    return {
-      availableDays,
-      pendingDays,
-      hcmSyncedAt: new Date(),
-    };
+  // Simulates the real-time HCM balance lookup used by read endpoints.
+  async fetchBalance(
+    employee: { hcmEmployeeId: string },
+    location: { hcmLocationId: string },
+  ) {
+    return this.getBalance(employee, location);
   }
 
   // Simulates the batch HCM corpus used by reconciliation jobs.
@@ -102,18 +128,7 @@ export class HcmAdapter {
     daysRequested: number;
   }) {
     if (this.axiosInstance) {
-      await this.axiosInstance.post('/requests', {
-        employeeId: request.hcmEmployeeId,
-        locationId: request.hcmLocationId,
-        startDate: request.startDate.toISOString(),
-        endDate: request.endDate.toISOString(),
-        daysRequested: request.daysRequested,
-      });
-      return {
-        success: true,
-        hcmRequestId: `HCM-${Date.now()}`,
-        submittedAt: new Date(),
-      };
+      return this.submitDeductionToHcm(this.axiosInstance, request);
     }
 
     // Simulates HCM API call
@@ -135,6 +150,97 @@ export class HcmAdapter {
     daysRequested: number;
   }) {
     return this.submitDeduction(request);
+  }
+
+  private getFallbackBalance(
+    employee: { hcmEmployeeId: string },
+    location: { hcmLocationId: string },
+  ) {
+    // Fallback to fake logic
+    const employeeScore = employee.hcmEmployeeId.length;
+    const locationScore = location.hcmLocationId.length;
+    const pendingDays = Number((locationScore % 5).toFixed(2));
+    const availableDays = Number((20 + employeeScore - pendingDays).toFixed(2));
+
+    return {
+      availableDays,
+      pendingDays,
+      hcmSyncedAt: new Date(),
+    };
+  }
+
+  private async submitDeductionToHcm(
+    axiosInstance: AxiosInstance,
+    request: {
+      hcmEmployeeId: string;
+      hcmLocationId: string;
+      startDate: Date;
+      endDate: Date;
+      daysRequested: number;
+    },
+  ) {
+    let lastGatewayTimeout: unknown;
+
+    for (let attempt = 1; attempt <= this.maxRetries; attempt += 1) {
+      try {
+        const response = await axiosInstance.post('/requests', {
+          employeeId: request.hcmEmployeeId,
+          locationId: request.hcmLocationId,
+          startDate: request.startDate.toISOString(),
+          endDate: request.endDate.toISOString(),
+          daysRequested: request.daysRequested,
+        });
+
+        return {
+          success: true,
+          hcmRequestId: response.data?.hcmRequestId ?? `HCM-${Date.now()}`,
+          submittedAt: response.data?.submittedAt
+            ? new Date(response.data.submittedAt)
+            : new Date(),
+        };
+      } catch (error) {
+        const status = this.getHttpStatus(error);
+
+        if (status === 422) {
+          throw new InsufficientBalanceError();
+        }
+
+        if (
+          status === 400 &&
+          this.getErrorCode(error) === 'BAD_DIMENSION'
+        ) {
+          throw new InvalidDimensionError();
+        }
+
+        if (status === 504) {
+          lastGatewayTimeout = error;
+          if (attempt < this.maxRetries) {
+            await this.backoff(attempt);
+            continue;
+          }
+
+          throw new HcmRetryExhaustedError();
+        }
+
+        throw error;
+      }
+    }
+
+    throw lastGatewayTimeout;
+  }
+
+  private async backoff(attempt: number) {
+    await new Promise((resolve) =>
+      setTimeout(resolve, this.retryBackoffMs * attempt),
+    );
+  }
+
+  private getHttpStatus(error: unknown) {
+    return (error as any)?.response?.status;
+  }
+
+  private getErrorCode(error: unknown) {
+    return (error as any)?.response?.data?.code;
   }
 }
 

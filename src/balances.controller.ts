@@ -6,9 +6,9 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { AuthGuard } from './auth.guard';
+import { AuthGuard } from './guards/auth.guard';
 import { BalancesService } from './balances.service';
-import { AdminGuard } from './admin.guard';
+import { AdminGuard } from './guards/admin.guard';
 
 @Controller('balances')
 @UseGuards(AuthGuard)

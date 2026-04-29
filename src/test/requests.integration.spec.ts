@@ -2,17 +2,17 @@ import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/prisma/prisma.service';
+import { AppModule } from '../app.module';
+import { PrismaService } from '../prisma/prisma.service';
 import {
   HcmAdapter,
   HcmInsufficientBalanceError,
   HcmUnavailableError,
-} from '../src/hcm.adapter';
-import { AuthGuard } from '../src/auth.guard';
-import { EmployeeGuard } from '../src/employee.guard';
-import { ManagerOrAdminGuard } from '../src/manager-or-admin.guard';
-import { ProblemDetailsFilter } from '../src/problem-details-filter';
+} from '../hcm.adapter';
+import { AuthGuard } from '../guards/auth.guard';
+import { EmployeeGuard } from '../guards/employee.guard';
+import { ManagerOrAdminGuard } from '../guards/manager-or-admin.guard';
+import { ProblemDetailsFilter } from '../problem-details-filter';
 
 describe('Requests (integration)', () => {
   let app: INestApplication<App>;

@@ -18,9 +18,9 @@ import {
   Req,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { AuthGuard } from './auth.guard';
-import { EmployeeGuard } from './employee.guard';
-import { ManagerOrAdminGuard } from './manager-or-admin.guard';
+import { AuthGuard } from './guards/auth.guard';
+import { EmployeeGuard } from './guards/employee.guard';
+import { ManagerOrAdminGuard } from './guards/manager-or-admin.guard';
 import { RequestsService } from './requests.service';
 import type { CreateTimeOffRequestDto } from './requests.service';
 

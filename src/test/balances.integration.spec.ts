@@ -2,11 +2,11 @@ import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/prisma/prisma.service';
-import { HcmAdapter } from '../src/hcm.adapter';
-import { AuthGuard } from '../src/auth.guard';
-import { ProblemDetailsFilter } from '../src/problem-details-filter';
+import { AppModule } from '../app.module';
+import { PrismaService } from '../prisma/prisma.service';
+import { HcmAdapter } from '../hcm.adapter';
+import { AuthGuard } from '../guards/auth.guard';
+import { ProblemDetailsFilter } from '../problem-details-filter';
 import { jest } from '@jest/globals';
 
 describe('Balances (integration)', () => {
