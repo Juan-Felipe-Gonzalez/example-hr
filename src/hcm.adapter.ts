@@ -1,6 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import axios, { AxiosInstance } from 'axios';
 
+export class HcmInsufficientBalanceError extends Error {
+  constructor(message = 'Insufficient balance at approval time.') {
+    super(message);
+    this.name = 'HcmInsufficientBalanceError';
+  }
+}
+
+export class HcmUnavailableError extends Error {
+  constructor(message = 'HCM system is currently unavailable.') {
+    super(message);
+    this.name = 'HcmUnavailableError';
+  }
+}
+
 @Injectable()
 export class HcmAdapter {
   private axiosInstance: AxiosInstance;
@@ -78,9 +92,9 @@ export class HcmAdapter {
   }
 
   /**
-   * Submit a time-off request to the HCM system
+   * Submit a time-off deduction to the HCM system.
    */
-  async submitTimeOffRequestToHcm(request: {
+  async submitDeduction(request: {
     hcmEmployeeId: string;
     hcmLocationId: string;
     startDate: Date;
@@ -108,6 +122,19 @@ export class HcmAdapter {
       hcmRequestId: `HCM-${Date.now()}`,
       submittedAt: new Date(),
     };
+  }
+
+  /**
+   * Submit a time-off request to the HCM system
+   */
+  async submitTimeOffRequestToHcm(request: {
+    hcmEmployeeId: string;
+    hcmLocationId: string;
+    startDate: Date;
+    endDate: Date;
+    daysRequested: number;
+  }) {
+    return this.submitDeduction(request);
   }
 }
 

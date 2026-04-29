@@ -6,9 +6,14 @@ import {
   NotFoundException,
   ConflictException,
   UnprocessableEntityException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from './prisma/prisma.service';
-import { HcmAdapter } from './hcm.adapter';
+import {
+  HcmAdapter,
+  HcmInsufficientBalanceError,
+  HcmUnavailableError,
+} from './hcm.adapter';
 import { TimeOffRequest } from '@prisma/client';
 
 export type CreateTimeOffRequestDto = {
@@ -40,6 +45,12 @@ type ListTimeOffRequestsResponse = {
   data: TimeOffRequestResponse[];
 };
 
+type ApprovalActor = {
+  role: 'manager' | 'admin';
+  employeeId?: string;
+  managedLocationIds?: string[];
+};
+
 @Injectable()
 export class RequestsService {
   constructor(
@@ -63,7 +74,9 @@ export class RequestsService {
     }
 
     if (startDate >= endDate) {
-      throw new BadRequestException('startDate must be before endDate.');
+      throw new UnprocessableEntityException(
+        'startDate must be before endDate.',
+      );
     }
 
     if (dto.daysRequested <= 0) {
@@ -284,7 +297,7 @@ export class RequestsService {
    */
   async approveTimeOffRequest(
     requestId: string,
-    managerId: string,
+    actor: ApprovalActor,
   ): Promise<CreateTimeOffRequestResponse> {
     const request = await this.prisma.timeOffRequest.findUnique({
       where: { id: requestId },
@@ -298,20 +311,48 @@ export class RequestsService {
       throw new NotFoundException('Time-off request not found.');
     }
 
+    if (
+      actor.role === 'manager' &&
+      !actor.managedLocationIds?.includes(request.locationId)
+    ) {
+      throw new ForbiddenException(
+        "Managers can only approve requests for their managed locations.",
+      );
+    }
+
+    const actorId = actor.role === 'admin' ? 'admin' : actor.employeeId;
+    if (!actorId) {
+      throw new ForbiddenException('Approver identity is required.');
+    }
+
     if (request.status !== 'SUBMITTED') {
-      throw new BadRequestException(
+      throw new ConflictException(
         `Cannot approve request with status ${request.status}.`,
       );
     }
 
-    // Submit to HCM
-    await this.hcmAdapter.submitTimeOffRequestToHcm({
-      hcmEmployeeId: request.employee.hcmEmployeeId,
-      hcmLocationId: request.location.hcmLocationId,
-      startDate: request.startDate,
-      endDate: request.endDate,
-      daysRequested: request.daysRequested,
-    });
+    try {
+      // Submit to HCM
+      await this.hcmAdapter.submitDeduction({
+        hcmEmployeeId: request.employee.hcmEmployeeId,
+        hcmLocationId: request.location.hcmLocationId,
+        startDate: request.startDate,
+        endDate: request.endDate,
+        daysRequested: request.daysRequested,
+      });
+    } catch (error) {
+      if (error instanceof HcmInsufficientBalanceError) {
+        throw new ConflictException(
+          'Insufficient balance at approval time.',
+        );
+      }
+
+      if (error instanceof HcmUnavailableError) {
+        throw new ConflictException('HCM system is currently unavailable.');
+      }
+
+      throw error;
+    }
 
     // Update request status
     const updatedRequest = await this.prisma.timeOffRequest.update({
@@ -322,11 +363,28 @@ export class RequestsService {
       },
     });
 
+    await this.prisma.balanceSnapshot.update({
+      where: {
+        employeeId_locationId: {
+          employeeId: request.employeeId,
+          locationId: request.locationId,
+        },
+      },
+      data: {
+        availableDays: {
+          decrement: request.daysRequested,
+        },
+        pendingDays: {
+          decrement: request.daysRequested,
+        },
+      },
+    });
+
     // Audit log
     await this.prisma.auditEvent.create({
       data: {
         requestId,
-        actorId: managerId,
+        actorId,
         action: 'APPROVED',
         prevStatus: 'SUBMITTED',
         newStatus: 'APPROVED',
@@ -401,7 +459,7 @@ export class RequestsService {
     }
 
     if (request.status !== 'SUBMITTED') {
-      throw new BadRequestException(
+      throw new ConflictException(
         `Cannot cancel request with status ${request.status}.`,
       );
     }
@@ -411,6 +469,20 @@ export class RequestsService {
       where: { id: requestId },
       data: {
         status: 'CANCELLED',
+      },
+    });
+
+    await this.prisma.balanceSnapshot.update({
+      where: {
+        employeeId_locationId: {
+          employeeId: request.employeeId,
+          locationId: request.locationId,
+        },
+      },
+      data: {
+        pendingDays: {
+          decrement: request.daysRequested,
+        },
       },
     });
 

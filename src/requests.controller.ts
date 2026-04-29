@@ -129,7 +129,11 @@ export class RequestsController {
     @Req() req?: Request,
   ) {
     const user = (req as any)?.user;
-    return await this.requestsService.approveTimeOffRequest(id, user.role === 'admin' ? 'admin' : user.employeeId);
+    return await this.requestsService.approveTimeOffRequest(id, {
+      role: user.role,
+      employeeId: user.employeeId,
+      managedLocationIds: user.managedLocationIds,
+    });
   }
 
   /**

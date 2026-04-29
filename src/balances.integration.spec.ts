@@ -132,8 +132,8 @@ describe('Balances (integration)', () => {
       });
 
       expect(hcmAdapter.fetchBalance).toHaveBeenCalledWith(
-        'hcm-emp-1',
-        'hcm-loc-1',
+        { hcmEmployeeId: 'hcm-emp-1' },
+        { hcmLocationId: 'hcm-loc-1' },
       );
 
       expect(prismaService.balanceSnapshot.upsert).toHaveBeenCalledWith({

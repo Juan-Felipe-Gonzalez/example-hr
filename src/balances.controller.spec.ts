@@ -17,6 +17,8 @@ describe('BalancesController', () => {
     getEmployeeBalances: jest.fn(),
     triggerBatchSync: jest.fn(),
     getBatchSyncStatus: jest.fn(),
+    validateRequest: jest.fn(),
+    applyOptimisticLock: jest.fn(),
   };
 
   beforeEach(async () => {

@@ -36,6 +36,31 @@ type BatchSyncStatusResponse = {
   };
 };
 
+export type ValidateRequestDto = {
+  employeeId: string;
+  locationId: string;
+  startDate: Date;
+  endDate: Date;
+  daysRequested: number;
+};
+
+export type RequestValidationStatus =
+  | 'OK'
+  | 'INSUFFICIENT_BALANCE'
+  | 'DATE_OVERLAP'
+  | 'INVALID_LOCATION';
+
+export type OptimisticLockStatus = 'OK' | 'CONFLICT';
+
+export type OptimisticLockDto = {
+  employeeId: string;
+  locationId: string;
+  data: {
+    availableDays?: Prisma.FloatFieldUpdateOperationsInput | number;
+    pendingDays?: Prisma.FloatFieldUpdateOperationsInput | number;
+  };
+};
+
 @Injectable()
 export class BalancesService {
   constructor(
@@ -135,6 +160,100 @@ export class BalancesService {
         errors: job.errors === null ? null : job.errors,
       },
     };
+  }
+
+  async validateRequest(
+    dto: ValidateRequestDto,
+  ): Promise<{ status: RequestValidationStatus }> {
+    const snapshot = await this.prisma.balanceSnapshot.findUnique({
+      where: {
+        employeeId_locationId: {
+          employeeId: dto.employeeId,
+          locationId: dto.locationId,
+        },
+      },
+    });
+
+    if (!snapshot) {
+      return { status: 'INVALID_LOCATION' };
+    }
+
+    if (snapshot.availableDays - snapshot.pendingDays < dto.daysRequested) {
+      return { status: 'INSUFFICIENT_BALANCE' };
+    }
+
+    const overlappingRequests = await this.prisma.timeOffRequest.findMany({
+      where: {
+        employeeId: dto.employeeId,
+        locationId: dto.locationId,
+        status: 'SUBMITTED',
+        OR: [
+          {
+            AND: [
+              { startDate: { lte: dto.startDate } },
+              { endDate: { gte: dto.startDate } },
+            ],
+          },
+          {
+            AND: [
+              { startDate: { lte: dto.endDate } },
+              { endDate: { gte: dto.endDate } },
+            ],
+          },
+          {
+            AND: [
+              { startDate: { gte: dto.startDate } },
+              { endDate: { lte: dto.endDate } },
+            ],
+          },
+        ],
+      },
+    });
+
+    if (overlappingRequests.length > 0) {
+      return { status: 'DATE_OVERLAP' };
+    }
+
+    return { status: 'OK' };
+  }
+
+  async applyOptimisticLock(
+    dto: OptimisticLockDto,
+  ): Promise<{ status: OptimisticLockStatus }> {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const snapshot = await this.prisma.balanceSnapshot.findUnique({
+        where: {
+          employeeId_locationId: {
+            employeeId: dto.employeeId,
+            locationId: dto.locationId,
+          },
+        },
+      });
+
+      if (!snapshot) {
+        return { status: 'CONFLICT' };
+      }
+
+      const result = await this.prisma.balanceSnapshot.updateMany({
+        where: {
+          employeeId: dto.employeeId,
+          locationId: dto.locationId,
+          version: snapshot.version,
+        },
+        data: {
+          ...dto.data,
+          version: {
+            increment: 1,
+          },
+        },
+      });
+
+      if (result.count === 1) {
+        return { status: 'OK' };
+      }
+    }
+
+    return { status: 'CONFLICT' };
   }
 
   private async getEmployeeOrThrow(employeeId: string) {

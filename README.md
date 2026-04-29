@@ -1,8 +1,40 @@
-# Juan Felipe González
+# Author: 
+
+Juan Felipe González
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Time-Off Microservice built with NestJS and SQLite to manage employee leave requests while keeping balances synchronized with external HCM systems such as Workday or SAP. Includes request lifecycle management, balance validation, real-time and batch sync flows, defensive consistency checks, automated tests, and mock HCM integrations.
+
+## How to setup the project
+
+```bash
+$ npm install
+```
+
+## How to compile and run the project
+
+```bash
+# development
+$ npm run start
+
+# prisma database
+$ npx prisma studio
+```
+
+## Run tests
+
+```bash
+# unit tests
+$ npm run test
+
+# e2e tests
+$ npm run test:e2e
+
+# test coverage
+$ npm run test:cov
+```
+
 
 ## Technologies
 
@@ -36,51 +68,15 @@ The application provides the following REST API endpoints:
 - `PATCH /requests/:id/reject` - Rejects a time-off request (Manager/Admin only)
 - `DELETE /requests/:id` - Cancels a time-off request (Employee or Admin)
 
-## Project setup
+### AI Agents
 
-```bash
-$ npm install
-```
+Documentation:
+* Claude Code
 
-## Compile and run the project
+REST API:
+* Cursor
 
-```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
-
-# prisma database
-$ npx prisma studio
-```
-
-## Run tests
-
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Tests: 
+* Copilot
+* Codex
 
