@@ -15,18 +15,18 @@ Time-Off Microservice built with NestJS and SQLite to manage employee leave requ
 
 The test suite comprises 52 tests across 8 suites, covering unit, integration, and E2E scenarios as defined in the TRD. All suites pass cleanly in 7.5 seconds.
 
-![test Coverage image](./documnetation/testCoverage.jpg)
+![test Coverage image](./documentation/testCoverage.jpg)
 
 Core business logic is well-covered: app.module, balances.controller, idempotency.service, and prisma.module all reach 100% line coverage. The reconciler.service hits 92% lines and requests.service 69.5%, with uncovered branches concentrated in edge-case error paths and retry logic that require a live HCM connection to exercise fully. The src/guards folder sits at lower coverage due to auth flows that depend on JWT context not wired in the current mock setup — these are tracked and earmarked for the next iteration.
+
+## Documentation
+- [Technical Requirements Document (TRD)](./documentation/TRD.docx)
 
 ## How to setup the project
 
 ```bash
 $ npm install
 ```
-
-## Documentation
-- [Technical Requirements Document (TRD)](./documentation/TRD.docx)
 
 ## How to compile and run the project
 
@@ -51,6 +51,21 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
+## Architecture Diagram
+
+![c2 Model](./documentation/c2Model.jpg)
+
+Key Architectural Highlights (based on TRD)
+
+* Defensive Philosophy: Every write operation involves a local pre-check and a real-time HCM balance fetch to prevent over-drawing.  
+
+* Source of Truth: HCM remains the authority for leave balances, while TOM follows and maintains local snapshots for UI performance.  
+
+* Resilience: The Reconciler (nightly @Cron job) identifies "Ghost Deductions" or sync anomalies to recover from partial failures.  
+
+* Concurrency: Employs Optimistic Locking on balance_snapshots via a version column to handle double-submits safely.  
+
+* Data Integrity: All state transitions are logged in an immutable audit_events table within the same transaction.
 
 ## Technologies
 
