@@ -2,15 +2,31 @@
 
 Juan Felipe González
 
+![Tests](https://img.shields.io/badge/tests-52%20passed-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-66%25-yellow)
+![NestJS](https://img.shields.io/badge/NestJS-v10-red)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
 ## Description
 
 Time-Off Microservice built with NestJS and SQLite to manage employee leave requests while keeping balances synchronized with external HCM systems such as Workday or SAP. Includes request lifecycle management, balance validation, real-time and batch sync flows, defensive consistency checks, automated tests, and mock HCM integrations.
+
+## Test Coverage
+
+The test suite comprises 52 tests across 8 suites, covering unit, integration, and E2E scenarios as defined in the TRD. All suites pass cleanly in 7.5 seconds.
+
+![test Coverage image](./documnetation/testCoverage.jpg)
+
+Core business logic is well-covered: app.module, balances.controller, idempotency.service, and prisma.module all reach 100% line coverage. The reconciler.service hits 92% lines and requests.service 69.5%, with uncovered branches concentrated in edge-case error paths and retry logic that require a live HCM connection to exercise fully. The src/guards folder sits at lower coverage due to auth flows that depend on JWT context not wired in the current mock setup — these are tracked and earmarked for the next iteration.
 
 ## How to setup the project
 
 ```bash
 $ npm install
 ```
+
+## Documentation
+- [Technical Requirements Document (TRD)](./documentation/TRD.docx)
 
 ## How to compile and run the project
 
@@ -70,13 +86,7 @@ The application provides the following REST API endpoints:
 
 ### AI Agents
 
-Documentation:
-* Claude Code
-
-REST API:
-* Cursor
-
-Tests: 
-* Copilot
-* Codex
-
+* Documentation: Claude Code
+* REST API: Cursor
+* Tests: Copilot & Codex
+* Moral support: Chatgpt
