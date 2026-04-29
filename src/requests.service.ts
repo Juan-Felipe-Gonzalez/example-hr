@@ -231,6 +231,7 @@ export class RequestsService {
 
     return {
       data: this.formatTimeOffRequest(request),
+      isNew: false,
     };
   }
 
@@ -334,6 +335,7 @@ export class RequestsService {
 
     return {
       data: this.formatTimeOffRequest(updatedRequest),
+      isNew: false,
     };
   }
 
@@ -379,6 +381,7 @@ export class RequestsService {
 
     return {
       data: this.formatTimeOffRequest(updatedRequest),
+      isNew: false,
     };
   }
 
@@ -424,6 +427,7 @@ export class RequestsService {
 
     return {
       data: this.formatTimeOffRequest(updatedRequest),
+      isNew: false,
     };
   }
 

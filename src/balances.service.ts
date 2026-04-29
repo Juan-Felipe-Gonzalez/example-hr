@@ -179,7 +179,10 @@ export class BalancesService {
      * This ensures real-time balance data for individual requests.
      */
     try {
-      const freshBalance = await this.hcmAdapter.fetchBalance(employee.hcmEmployeeId, location.hcmLocationId);
+      const freshBalance = await this.hcmAdapter.fetchBalance(
+        { hcmEmployeeId: employee.hcmEmployeeId },
+        { hcmLocationId: location.hcmLocationId },
+      );
 
       return this.prisma.balanceSnapshot.upsert({
         where: {
@@ -206,9 +209,7 @@ export class BalancesService {
         },
       });
     } catch (error) {
-      throw new HttpException('HCM system is currently unavailable.', HttpStatus.SERVICE_UNAVAILABLE, {
-        headers: { 'retry-after': '300' },
-      });
+      throw new HttpException('HCM system is currently unavailable.', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 

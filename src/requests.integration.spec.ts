@@ -394,8 +394,8 @@ describe('Requests (integration)', () => {
     it('Second POST with same Idempotency-Key returns 200 with original request.', async () => {
       const dto = {
         locationId,
-        startDate: '2024-12-01',
-        endDate: '2024-12-05',
+        startDate: '2026-12-01',
+        endDate: '2026-12-05',
         daysRequested: 5,
       };
 
@@ -492,8 +492,8 @@ describe('Requests (integration)', () => {
         id: 'request-id',
         employeeId,
         locationId,
-        startDate: '2024-12-01T00:00:00.000Z',
-        endDate: '2024-12-05T00:00:00.000Z',
+        startDate: '2026-12-01T00:00:00.000Z',
+        endDate: '2026-12-05T00:00:00.000Z',
         daysRequested: dto.daysRequested,
         status: 'SUBMITTED',
         hcmSubmitted: false,
